@@ -1,18 +1,67 @@
 {
-  "name": "handsdetection",
+  "name": "dangerous-operation-detector",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Dangerous Operation Detection Desktop App",
+  "main": "main.js",
   "scripts": {
+    "dev": "electron . --debug",
+    "start": "electron .",
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/control_utils": "^0.6.1675466023",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/hands": "^0.4.1675469240"
+  },
+  "devDependencies": {
+    "electron": "^33.0.2",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.dangerous.detector",
+    "directories": {
+      "output": "dist",
+      "buildResources": "resources"
+    },
+    "compression": "maximum",
+    "files": [
+      "src/**/*",
+      "main.js",
+      "preload.js",
+      "package.json",
+      "!src/**/*.map",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
+    "extraResources": [
+      {
+        "from": "mediapipe",
+        "to": "mediapipe",
+        "filter": [
+          "**/*.js",
+          "**/*.wasm",
+          "!**/*.map",
+          "!**/*.test/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
   }
 }

@@ -1,0 +1,48 @@
+// .vscode/launch.json 
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Electron: Main",
+        "type": "node",
+        "request": "launch",
+        "cwd": "${workspaceFolder}",
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd",
+        "program": "${workspaceFolder}/main.js",
+        "args": [
+          "--remote-debugging-port=9223",
+          "--inspect=5858"
+        ],
+        "console": "integratedTerminal",
+        "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+        "resolveSourceMapLocations": [
+          "${workspaceFolder}/**",
+          "!**/node_modules/**"
+        ],
+        "outputCapture": "std",
+        "env": {
+          "NODE_ENV": "development"
+        }
+      },
+      {
+        "name": "Electron: Renderer",
+        "type": "chrome",
+        "request": "attach",
+        "port": 9223,
+        "urlFilter": "file://*",
+        "webRoot": "${workspaceFolder}/src",
+        "timeout": 30000,
+        "sourceMapPathOverrides": {
+          "webpack:///./~/*": "${webRoot}/node_modules/*",
+          "webpack:///./*": "${webRoot}/*"
+        }
+      }
+    ],
+    "compounds": [
+      {
+        "name": "Electron: All",
+        "configurations": ["Electron: Main", "Electron: Renderer"],
+        "stopAll": true
+      }
+    ]
+  }
