@@ -6,13 +6,14 @@
     <title>危险操作检测</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
             margin: 0;
             padding: 0;
         }
         .container {
-            max-width: 1200px;
+            max-width: 100%;
             margin: 0 auto;
             padding: 20px;
         }
@@ -21,37 +22,101 @@
             font-size: 2em;
             font-weight: bold;
             margin-bottom: 20px;
+            color: #00aaff;
         }
         .status {
             text-align: center;
             padding: 20px;
             margin: 20px 0;
-            font-size: 2em;
+            font-size: 1.5em;
             font-weight: bold;
+            border-radius: 8px;
         }
         .normal {
-            background-color: #e8f5e9;
-            color: #4caf50;
+            background-color: #2e7d32;
+            color: #ffffff;
         }
         .danger {
-            background-color: #ffecec;
-            color: #f44336;
+            background-color: #c62828;
+            color: #ffffff;
         }
         .operation-panel {
-            text-align: center;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
             margin: 20px 0;
+            padding: 15px;
+            background: linear-gradient(145deg, #1e1e1e, #252525);
+            border-radius: 12px;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
         }
-        .operation-panel button {
-            padding: 10px 20px;
-            font-size: 1em;
-            margin: 0 10px;
+        .main-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .main-controls button {
+            padding: 20px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+            color: var(--text-color);
             cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 5px 5px 10px #161616,
+                        -5px -5px 10px #363636;
+        }
+        .main-controls button:active {
+            box-shadow: inset 5px 5px 10px #161616,
+                        inset -5px -5px 10px #363636;
+        }
+        .main-controls button.active {
+            background: linear-gradient(145deg, var(--primary-color), #0088cc);
+            box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);
+        }
+        .secondary-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: space-between;
+        }
+        .secondary-controls button {
+            padding: 12px;
+            font-size: 1em;
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .secondary-controls button:hover {
+            background: rgba(0, 170, 255, 0.1);
+        }
+        .mute-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            color: var(--text-color);
+            font-size: 0.9em;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .mute-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
         }
         .video-container {
             position: relative;
             width: 100%;
             margin: 0 auto;
             display: none; /* Hide by default */
+            border: 2px solid #00aaff;
+            border-radius: 8px;
+            overflow: hidden;
         }
         video {
             width: 100%;
@@ -74,13 +139,33 @@
             padding: 10px;
             margin: 0;
             border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .troubleshooting h3::before {
+            content: '▼';
+            margin-right: 10px;
+            font-size: 0.8em;
         }
         .troubleshooting-content {
             display: none;
             padding: 10px;
-            background-color: white;
-            border: 1px solid #ddd;
+            background-color: #2c2c2c;
+            border: 1px solid #444;
             border-radius: 4px;
+        }
+        .stat-box {
+            background: #2c2c2c;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin: 10px 0;
+        }
+        .stat-box h3 {
+            margin: 0 0 10px 0;
+            color: #00aaff;
         }
         .loading {
             position: fixed;
@@ -101,6 +186,75 @@
             border-radius: 4px;
             text-align: center;
         }
+        .settings {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .settings label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .settings input,
+        .settings select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background-color: #333;
+            color: white;
+            width: 100%;
+        }
+        .settings input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #444;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .settings input[type="range"]:hover {
+            opacity: 1;
+        }
+        .settings input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00aaff;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .settings input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #00aaff;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        @media (max-width: 768px) {
+            .operation-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .main-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .secondary-controls {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .secondary-controls button,
+            .mute-label {
+                flex: 1 1 auto;
+                min-width: 120px;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -112,8 +266,17 @@
         </div>
 
         <div class="operation-panel">
-            <button id="toggleDetectionBtn">开始运行</button>
-            <button id="toggleMonitorBtn">打开监视器</button>
+            <div class="main-controls">
+                <button id="toggleDetectionBtn" class="primary-btn">开始监测</button>
+                <button id="toggleMonitorBtn" class="primary-btn">打开监视器</button>
+            </div>
+            <div class="secondary-controls">
+                <button id="switchCameraBtn" class="secondary-btn">切换摄像头</button>
+                <label class="mute-label">
+                    <input type="checkbox" id="muteCheckbox">
+                    静音
+                </label>
+            </div>
         </div>
         
         <div id="errorMessage" class="error-message" style="display: none;"></div>
@@ -124,12 +287,33 @@
         </div>
 
         <div class="troubleshooting">
-            <h3 onclick="toggleTroubleshooting()">Troubleshooting</h3>
+            <h3 onclick="toggleTroubleshooting()"></h3>
             <div class="troubleshooting-content" id="troubleshootingContent">
-                <div class="controls">
-                    <button id="startBtn">Start Detection</button>
-                    <button id="stopBtn">Stop Detection</button>
-                    <button id="switchBtn">Switch Camera</button>
+                <div class="settings">
+                    <label>
+                        最大手数:
+                        <input type="range" id="maxNumHands" value="2" min="1" max="10" oninput="this.nextElementSibling.value = this.value">
+                        <output>2</output>
+                    </label>
+                    <label>
+                        模型复杂度:
+                        <select id="modelComplexity">
+                            <option value="0">0 - 快速</option>
+                            <option value="1" selected>1 - 精确</option>
+                        </select>
+                    </label>
+                    <label>
+                        最小检测置信度:
+                        <input type="range" id="minDetectionConfidence" value="0.5" step="0.1" min="0" max="1" oninput="this.nextElementSibling.value = this.value">
+                        <output>0.5</output>
+                    </label>
+                    <label>
+                        最小跟踪置信度:
+                        <input type="range" id="minTrackingConfidence" value="0.5" step="0.1" min="0" max="1" oninput="this.nextElementSibling.value = this.value">
+                        <output>0.5</output>
+                    </label>
+                    <button onclick="updateSettings()">更新设置</button>
+                    <button onclick="resetSettings()">重置为默认</button>
                 </div>
 
                 <div class="stats">
@@ -154,22 +338,18 @@
         Loading MediaPipe...
     </div>
 
+    <audio id="alarmSound" src="alarm.mp3" preload="auto"></audio>
+
     <script src="./mediapipe/camera_utils/camera_utils.js"></script>
     <script src="./mediapipe/control_utils/control_utils.js"></script>
     <script src="./mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="./mediapipe/hands/hands.js"></script>
     
     <script>
-        let camera;
-        let hands;
-        let videoElement;
-        let canvasElement;
-        let canvasCtx;
-        let lastTime = 0;
-        let frameCount = 0;
-        let fps = 0;
-        let detectionRunning = false;
-        let monitorVisible = false;
+        let camera, hands, videoElement, canvasElement, canvasCtx;
+        let lastTime = 0, frameCount = 0, fps = 0;
+        let detectionRunning = false, monitorVisible = false;
+        let alarmSound = document.getElementById('alarmSound');
 
         function showError(message) {
             const errorElement = document.getElementById('errorMessage');
@@ -232,6 +412,7 @@
                 // Event listeners
                 document.getElementById('toggleDetectionBtn').addEventListener('click', toggleDetection);
                 document.getElementById('toggleMonitorBtn').addEventListener('click', toggleMonitor);
+                document.getElementById('switchCameraBtn').addEventListener('click', switchCamera);
                 
             } catch (error) {
                 console.error('Error initializing MediaPipe:', error);
@@ -265,10 +446,15 @@
                 statusElement.textContent = '危险';
                 statusElement.classList.remove('normal');
                 statusElement.classList.add('danger');
+                if (!muteCheckbox.checked) {
+                    alarmSound.play();
+                }
             } else {
                 statusElement.textContent = '正常';
                 statusElement.classList.remove('danger');
                 statusElement.classList.add('normal');
+                alarmSound.pause();
+                alarmSound.currentTime = 0;
             }
             
             // Draw the results
@@ -332,10 +518,13 @@
         
         function toggleTroubleshooting() {
             const content = document.getElementById('troubleshootingContent');
+            const icon = document.querySelector('.troubleshooting h3::before');
             if (content.style.display === 'none' || content.style.display === '') {
                 content.style.display = 'block';
+                icon.textContent = '▲';
             } else {
                 content.style.display = 'none';
+                icon.textContent = '▼';
             }
         }
 
@@ -344,10 +533,10 @@
             const btn = document.getElementById('toggleDetectionBtn');
             if (detectionRunning) {
                 startCamera();
-                btn.textContent = '停止运行';
+                btn.textContent = '停止监测';
             } else {
                 stopCamera();
-                btn.textContent = '开始运行';
+                btn.textContent = '开始监测';
             }
         }
 
@@ -362,6 +551,29 @@
                 videoContainer.style.display = 'none';
                 btn.textContent = '打开监视器';
             }
+        }
+
+        function updateSettings() {
+            const maxNumHands = document.getElementById('maxNumHands').value;
+            const modelComplexity = document.getElementById('modelComplexity').value;
+            const minDetectionConfidence = document.getElementById('minDetectionConfidence').value;
+            const minTrackingConfidence = document.getElementById('minTrackingConfidence').value;
+
+            hands.setOptions({
+                maxNumHands: parseInt(maxNumHands),
+                modelComplexity: parseInt(modelComplexity),
+                minDetectionConfidence: parseFloat(minDetectionConfidence),
+                minTrackingConfidence: parseFloat(minTrackingConfidence)
+            });
+        }
+
+        function resetSettings() {
+            document.getElementById('maxNumHands').value = 2;
+            document.getElementById('modelComplexity').value = 1;
+            document.getElementById('minDetectionConfidence').value = 0.5;
+            document.getElementById('minTrackingConfidence').value = 0.5;
+
+            updateSettings();
         }
         
         // Initialize when page loads
