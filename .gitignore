@@ -96,3 +96,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Node modules
+node_modules/
+
+# The deploy folder
+deploy/

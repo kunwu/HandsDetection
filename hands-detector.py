@@ -7,9 +7,10 @@ class HandDetector:
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.hands = self.mp_hands.Hands(
-            max_num_hands=2,
+            max_num_hands=1,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
+            model_complexity=0  # Use simpler model for faster performance
         )
 
     def process_frame(self, frame):
@@ -19,8 +20,13 @@ class HandDetector:
         # Process the frame
         results = self.hands.process(frame_rgb)
         
-        # Draw landmarks
+        hand_detected = False
+        # Detect hands and Draw landmarks
         if results.multi_hand_landmarks:
+            hand_detected = True
+            status = "DANGER!"
+            color = (0, 0, 255)
+            cv2.putText(frame, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
             for landmarks in results.multi_hand_landmarks:
                 self.mp_drawing.draw_landmarks(
                     frame,
@@ -28,7 +34,7 @@ class HandDetector:
                     self.mp_hands.HAND_CONNECTIONS
                 )
         
-        return frame
+        return hand_detected, frame
 
 def main():
     # Initialize webcam
@@ -43,7 +49,7 @@ def main():
             break
 
         # Process frame
-        frame = detector.process_frame(frame)
+        hand_detected, frame = detector.process_frame(frame)
 
         # Display frame
         cv2.imshow('Hand Detection', frame)
