@@ -72,6 +72,15 @@ async function initializeHandDetection() {
     }
 }
 
+function triggerFlashEffect() {
+    const flashEffect = document.getElementById('flashEffect');
+    flashEffect.classList.add('active');
+    setTimeout(() => {
+        flashEffect.classList.remove('active');
+    }, 500);
+}
+
+// Modify the onResults function to trigger the flash effect
 function onResults(results) {
     // Calculate FPS
     const now = performance.now();
@@ -101,6 +110,7 @@ function onResults(results) {
         if (!muteCheckbox.checked) {
             alarmSound.play();
         }
+        triggerFlashEffect(); // Trigger flash effect when hands are detected
     } else {
         statusElement.textContent = '正常';
         statusElement.classList.remove('danger');
@@ -215,63 +225,6 @@ async function initializeHandDetection() {
         console.error('Error initializing MediaPipe:', error);
         showError(`Initialization error: ${error.message}`);
     }
-}
-
-function onResults(results) {
-    // Calculate FPS
-    const now = performance.now();
-    frameCount++;
-    
-    if (now - lastTime >= 1000) {
-        fps = frameCount;
-        document.getElementById('fps').textContent = fps;
-        frameCount = 0;
-        lastTime = now;
-    }
-    
-    // Update detection time
-    const detectionTime = Math.round(results.handedness ? results.handedness.length > 0 ? performance.now() - now : 0 : 0);
-    document.getElementById('detectionTime').textContent = `${detectionTime} ms`;
-    
-    // Update hands count
-    const handsDetected = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
-    document.getElementById('handsCount').textContent = handsDetected;
-    
-    // Update status
-    const statusElement = document.getElementById('status');
-    if (handsDetected > 0) {
-        statusElement.textContent = '危险';
-        statusElement.classList.remove('normal');
-        statusElement.classList.add('danger');
-        if (!muteCheckbox.checked) {
-            alarmSound.play();
-        }
-    } else {
-        statusElement.textContent = '正常';
-        statusElement.classList.remove('danger');
-        statusElement.classList.add('normal');
-        alarmSound.pause();
-        alarmSound.currentTime = 0;
-    }
-    
-    // Draw the results
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-    
-    if (results.multiHandLandmarks) {
-        for (const landmarks of results.multiHandLandmarks) {
-            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-                color: '#00FF00',
-                lineWidth: 5
-            });
-            drawLandmarks(canvasCtx, landmarks, {
-                color: '#FF0000',
-                lineWidth: 2
-            });
-        }
-    }
-    canvasCtx.restore();
 }
 
 async function startCamera() {
