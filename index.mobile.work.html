@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Hand Detection</title>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        video {
+            width: 100%;
+            height: auto;
+        }
+        canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .not-detected {
+            background-color: #ffecec;
+            color: #f44336;
+        }
+        .detected {
+            background-color: #e8f5e9;
+            color: #4caf50;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .controls button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+        .stat-box {
+            text-align: center;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real-time Hand Detection</h1>
+        
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        
+        <div class="video-container">
+            <video id="video" width="640" height="480" autoplay playsinline></video>
+            <canvas id="output" width="640" height="480"></canvas>
+        </div>
+
+        <div id="status" class="status not-detected">
+            No Hand Detected
+        </div>
+
+        <div class="controls">
+            <button id="startBtn">Start Detection</button>
+            <button id="stopBtn">Stop Detection</button>
+            <button id="switchBtn">Switch Camera</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <h3>Detection Time</h3>
+                <div id="detectionTime">0 ms</div>
+            </div>
+            <div class="stat-box">
+                <h3>FPS</h3>
+                <div id="fps">0</div>
+            </div>
+            <div class="stat-box">
+                <h3>Hands Detected</h3>
+                <div id="handsCount">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading" class="loading" style="display: none">
+        Loading MediaPipe...
+    </div>
+
+    <script src="./mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="./mediapipe/control_utils/control_utils.js"></script>
+    <script src="./mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="./mediapipe/hands/hands.js"></script>
+    
+    <script>
+        let camera;
+        let hands;
+        let videoElement;
+        let canvasElement;
+        let canvasCtx;
+        let lastTime = 0;
+        let frameCount = 0;
+        let fps = 0;
+        
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function checkCameraAvailability() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                if (videoDevices.length === 0) {
+                    throw new Error('No camera devices found');
+                }
+                return videoDevices;
+            } catch (error) {
+                throw new Error(`Camera check failed: ${error.message}`);
+            }
+        }
+        
+        async function initializeHandDetection() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('errorMessage').style.display = 'none';
+                
+                // Check for camera availability first
+                await checkCameraAvailability();
+                
+                videoElement = document.getElementById('video');
+                canvasElement = document.getElementById('output');
+                canvasCtx = canvasElement.getContext('2d');
+                
+                hands = new Hands({
+                    locateFile: (file) => {
+                        return `./mediapipe/hands/${file}`;
+                    }
+                });
+                
+                hands.setOptions({
+                    maxNumHands: 2,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                
+                hands.onResults(onResults);
+                
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await hands.send({image: videoElement});
+                    },
+                    width: 640,
+                    height: 480,
+                    facingMode: 'user'
+                });
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                // Event listeners
+                document.getElementById('startBtn').addEventListener('click', startCamera);
+                document.getElementById('stopBtn').addEventListener('click', stopCamera);
+                document.getElementById('switchBtn').addEventListener('click', switchCamera);
+                
+            } catch (error) {
+                console.error('Error initializing MediaPipe:', error);
+                showError(`Initialization error: ${error.message}`);
+            }
+        }
+        
+        function onResults(results) {
+            // Calculate FPS
+            const now = performance.now();
+            frameCount++;
+            
+            if (now - lastTime >= 1000) {
+                fps = frameCount;
+                document.getElementById('fps').textContent = fps;
+                frameCount = 0;
+                lastTime = now;
+            }
+            
+            // Update detection time
+            const detectionTime = Math.round(results.handedness ? results.handedness.length > 0 ? performance.now() - now : 0 : 0);
+            document.getElementById('detectionTime').textContent = `${detectionTime} ms`;
+            
+            // Update hands count
+            const handsDetected = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
+            document.getElementById('handsCount').textContent = handsDetected;
+            
+            // Update status
+            const statusElement = document.getElementById('status');
+            if (handsDetected > 0) {
+                statusElement.textContent = 'Hand Detected';
+                statusElement.classList.remove('not-detected');
+                statusElement.classList.add('detected');
+            } else {
+                statusElement.textContent = 'No Hand Detected';
+                statusElement.classList.remove('detected');
+                statusElement.classList.add('not-detected');
+            }
+            
+            // Draw the results
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+                        color: '#00FF00',
+                        lineWidth: 5
+                    });
+                    drawLandmarks(canvasCtx, landmarks, {
+                        color: '#FF0000',
+                        lineWidth: 2
+                    });
+                }
+            }
+            canvasCtx.restore();
+        }
+        
+        async function startCamera() {
+            try {
+                document.getElementById('errorMessage').style.display = 'none';
+                await camera.start();
+            } catch (error) {
+                console.error('Error starting camera:', error);
+                showError(`Failed to start camera: ${error.message}. Please make sure your camera is not being used by another application.`);
+            }
+        }
+        
+        function stopCamera() {
+            try {
+                camera.stop();
+            } catch (error) {
+                console.error('Error stopping camera:', error);
+                showError(`Error stopping camera: ${error.message}`);
+            }
+        }
+        
+        let currentCamera = 'user';
+        async function switchCamera() {
+            try {
+                currentCamera = currentCamera === 'user' ? 'environment' : 'user';
+                stopCamera();
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await hands.send({image: videoElement});
+                    },
+                    width: 640,
+                    height: 480,
+                    facingMode: currentCamera
+                });
+                await startCamera();
+            } catch (error) {
+                console.error('Error switching camera:', error);
+                showError(`Failed to switch camera: ${error.message}`);
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', initializeHandDetection);
+    </script>
+</body>
+</html>
