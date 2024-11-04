@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "electron . --debug",
     "start": "electron .",
-    "build": "electron-builder",
+    "build": "electron-builder -mw",
     "postinstall": "electron-builder install-app-deps",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
   },
   "keywords": [],
   "author": "",
@@ -25,28 +27,19 @@
   },
   "build": {
     "appId": "com.dangerous.detector",
+    "productName": "DangerousOperationDetector",
     "directories": {
       "output": "dist",
       "buildResources": "resources"
     },
     "compression": "maximum",
+    "asar": true,
     "files": [
       "src/**/*",
+      "!src/**/*.map",
       "main.js",
       "preload.js",
-      "package.json",
-      "!src/**/*.map",
-      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
-      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
-      "!**/node_modules/*.d.ts",
-      "!**/node_modules/.bin",
-      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
-      "!.editorconfig",
-      "!**/._*",
-      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
-      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
-      "!**/{appveyor.yml,.travis.yml,circle.yml}",
-      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+      "package.json"
     ],
     "extraResources": [
       {
@@ -54,14 +47,27 @@
         "to": "mediapipe",
         "filter": [
           "**/*.js",
-          "**/*.wasm",
-          "!**/*.map",
-          "!**/*.test/*"
+          "**/*.wasm"
         ]
       }
     ],
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.utilities",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
     "win": {
-      "target": "nsis"
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "runAfterFinish": true
     }
   }
 }
