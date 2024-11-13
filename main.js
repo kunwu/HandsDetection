@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, systemPreferences } = require('electron')
 const path = require('path')
 
 console.log('App starting...');  // Debug point 1
@@ -6,12 +6,13 @@ console.log('App starting...');  // Debug point 1
 function createWindow() {
   console.log('Creating window...'); // Debug point 2
   const win = new BrowserWindow({
-    width: 1024,
-    height: 768,
+    width: 768,
+    height: 576,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
+      permissions: ['media'],
       preload: path.join(__dirname, 'preload.js'),
       webgl: true,
       // Enable WebAssembly
@@ -23,6 +24,9 @@ function createWindow() {
   if (process.argv.includes('--debug')) {
     win.webContents.openDevTools()
   }
+
+  win.maximize();
+  win.webContents.openDevTools();
 
   // Set CSP header
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
@@ -42,11 +46,16 @@ function createWindow() {
 
 // Handle camera permissions
 ipcMain.handle('get-camera-permissions', async () => {
-  const { systemPreferences } = require('electron')
-  if (systemPreferences.getMediaAccessStatus('camera') !== 'granted') {
-    await systemPreferences.askForMediaAccess('camera')
+  if (process.platform === 'darwin') {
+    // macOS requires explicit permission
+    const status = await systemPreferences.getMediaAccessStatus('camera');
+    if (status === 'not-determined') {
+      const granted = await systemPreferences.askForMediaAccess('camera');
+      return granted;
+    }
+    return status === 'granted';
   }
-  return true
+  return true; // Windows/Linux
 })
 
 app.whenReady().then(createWindow)

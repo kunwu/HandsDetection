@@ -1,6 +1,6 @@
 const localMediaPipePath = './mediapipe';
 
-let camera, hands, videoElement, canvasElement, canvasCtx;
+let camera = null, hands, videoElement, canvasElement, canvasCtx;
 let lastTime = 0, frameCount = 0, fps = 0;
 let detectionRunning = false, monitorVisible = false;
 let alarmSound = document.getElementById('alarmSound');
@@ -10,6 +10,9 @@ let lastFrameTime = 0;
 let errorDebounce = false;
 const frameInterval = 1000 / 30; // 30 FPS max
 
+let availableCameras = [];
+let idxCurrentCamera = 0;
+
 function showError(message) {
     const errorElement = document.getElementById('errorMessage');
     errorElement.textContent = message;
@@ -17,10 +20,33 @@ function showError(message) {
     document.getElementById('loading').style.display = 'none';
 }
 
-async function checkCameraAvailability() {
+async function initializeCamera() {
+    videoElement = document.getElementById('video');
+
+    if (!videoElement) {
+        showError('Video element not found');
+        return;
+    }
+
+    availableCameras = await getAvailableCameras();
+
+    if (availableCameras.length === 0) {
+        showError('No camera devices found');
+        return;
+    }
+    console.log('Cameras:', availableCameras.map(camera => camera.label));
+
+    idxCurrentCamera = 0;
+    console.log('Using camera:', availableCameras[idxCurrentCamera].label);
+}
+
+async function getAvailableCameras() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        const videoDevices = devices
+            .filter(device => device.kind === 'videoinput')
+            .filter(device => !device.label.toUpperCase().includes('NVIDIA'))
+            ;
         if (videoDevices.length === 0) {
             throw new Error('No camera devices found');
         }
@@ -34,14 +60,15 @@ async function initializeHandDetection() {
     try {
         console.log('Starting hand detection initialization...');
         document.getElementById('loading').style.display = 'block';
-        
-        await checkCameraAvailability();
-        console.log('Camera available');
-        
-        videoElement = document.getElementById('video');
+
         canvasElement = document.getElementById('output');
         canvasCtx = canvasElement.getContext('2d');
-        
+
+        if (!canvasElement || !canvasCtx) {
+            showError('Canvas element not found');
+            return;
+        }
+
         console.log('Creating Hands instance...');
         hands = new Hands({
             locateFile: (file) => {
@@ -49,6 +76,8 @@ async function initializeHandDetection() {
                 return `mediapipe/hands/${file}`;
             }
         });
+
+        await hands.initialize();
         
         console.log('Setting hands options...');
         hands.setOptions({
@@ -62,38 +91,12 @@ async function initializeHandDetection() {
         hands.onResults(onResults);
         
         console.log('Initializing camera...');
-        // Setup camera with improved error handling and performance
-        camera = new Camera(videoElement, {
-            onFrame: async () => {
-                console.log('Frame received:', isDetectionEnabled);
-                try {
-                    if (isDetectionEnabled) {
-                        // Add frame throttling
-                        if (!lastFrameTime || performance.now() - lastFrameTime > frameInterval) {
-                            await hands.send({image: videoElement});
-                            lastFrameTime = performance.now();
-                        }
-                    }
-                } catch (error) {
-                    console.error('Frame processing error:', error);
-                    // Prevent error spam
-                    if (!errorDebounce) {
-                        errorDebounce = true;
-                        showError(`Frame processing error: ${error.message}`);
-                        setTimeout(() => errorDebounce = false, 1000);
-                    }
-                }
-            },
-            width: 640,
-            height: 480,
-            facingMode: 'user'
-        });
-        
-        console.log('Starting camera...');
-        await camera.start();
+        await setupCameraSystem();
         
         console.log('Initialization complete');
         document.getElementById('loading').style.display = 'none';
+
+        toggleMonitor();
         
         // Event listeners
         document.getElementById('toggleDetectionBtn').addEventListener('click', toggleDetection);
@@ -117,10 +120,10 @@ function triggerFlashEffect() {
 // Modify the onResults function to trigger the flash effect
 function onResults(results) {
     try {
-        console.log('Results received:', results);
+        // console.log('Results received:', results);
         
         if (results.multiHandLandmarks) {
-            console.log('Hands detected:', results.multiHandLandmarks.length);
+            // console.log('Hands detected:', results.multiHandLandmarks.length);
         }
         
         // Calculate FPS
@@ -185,20 +188,76 @@ function onResults(results) {
 
 async function startCamera() {
     try {
-        document.getElementById('errorMessage').style.display = 'none';
+        // Request permission first
+        const permission = await window.electronAPI.getCameraPermissions();
+        if (!permission) {
+            throw new Error('Camera permission denied');
+        }
+
+        // Stop camera if already running
+        if (camera) {
+            await stopCamera();
+        }
+
+        // const constraints = {
+        //     video: {
+        //         deviceId: { exact: availableCameras[idxCurrentCamera].deviceId },
+        //         width: { ideal: 640 },
+        //         height: { ideal: 480 }
+        //     }
+        // };
+
+        // const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        // videoElement.srcObject = stream;
+
+        // Create Camera instance with frame processing
+        camera = new Camera(videoElement, {
+            onFrame: async () => {
+                try {
+                    if (isDetectionEnabled) {
+                        // Add frame throttling
+                        if (!lastFrameTime || performance.now() - lastFrameTime > frameInterval) {
+                            await hands.send({ image: videoElement });
+                            lastFrameTime = performance.now();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Frame processing error:', error);
+                    if (!errorDebounce) {
+                        errorDebounce = true;
+                        showError(`Frame processing error: ${error.message}`);
+                        setTimeout(() => errorDebounce = false, 1000);
+                    }
+                }
+            },
+            width: 640,
+            height: 480,
+            cameraId: availableCameras[idxCurrentCamera].deviceId
+        });
+
         await camera.start();
+
+        // return new Promise((resolve) => {
+        //     videoElement.onloadedmetadata = () => {
+        //         videoElement.play();
+        //         resolve(videoElement);
+        //     };
+        // });
     } catch (error) {
-        console.error('Error starting camera:', error);
-        showError(`Failed to start camera: ${error.message}. Please make sure your camera is not being used by another application.`);
+        console.error('Camera start error:', error);
+        throw new Error(`Camera start failed: ${error.message}`);
     }
 }
 
 function stopCamera() {
-    try {
+    // if (videoElement && videoElement.srcObject) {
+    //     const tracks = videoElement.srcObject.getTracks();
+    //     tracks.forEach(track => track.stop());
+    //     videoElement.srcObject = null;
+    // }
+    if (camera) {
         camera.stop();
-    } catch (error) {
-        console.error('Error stopping camera:', error);
-        showError(`Error stopping camera: ${error.message}`);
+        camera = null;
     }
 }
 
@@ -209,71 +268,28 @@ function showError(message) {
     document.getElementById('loading').style.display = 'none';
 }
 
-async function checkCameraAvailability() {
-    try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        if (videoDevices.length === 0) {
-            throw new Error('No camera devices found');
-        }
-        return videoDevices;
-    } catch (error) {
-        throw new Error(`Camera check failed: ${error.message}`);
-    }
-}
-
-async function startCamera() {
-    try {
-        document.getElementById('errorMessage').style.display = 'none';
-        await camera.start();
-    } catch (error) {
-        console.error('Error starting camera:', error);
-        showError(`Failed to start camera: ${error.message}. Please make sure your camera is not being used by another application.`);
-    }
-}
-
-function stopCamera() {
-    try {
-        camera.stop();
-    } catch (error) {
-        console.error('Error stopping camera:', error);
-        showError(`Error stopping camera: ${error.message}`);
-    }
-}
-
-let currentCamera = 'user';
 async function switchCamera() {
     try {
-        currentCamera = currentCamera === 'user' ? 'environment' : 'user';
-        stopCamera();
-        camera = new Camera(videoElement, {
-            onFrame: async () => {
-                try {
-                    if (isDetectionEnabled) {
-                        // Add frame throttling
-                        if (!lastFrameTime || performance.now() - lastFrameTime > frameInterval) {
-                            await hands.send({image: videoElement});
-                            lastFrameTime = performance.now();
-                        }
-                    }
-                } catch (error) {
-                    console.error('Frame processing error:', error);
-                    // Prevent error spam
-                    if (!errorDebounce) {
-                        errorDebounce = true;
-                        showError(`Frame processing error: ${error.message}`);
-                        setTimeout(() => errorDebounce = false, 1000);
-                    }
-                }
-            },
-            width: 640,
-            height: 480,
-            facingMode: 'user'
-        });
+        idxCurrentCamera = (idxCurrentCamera + 1) % availableCameras.length;
+
+        await stopCamera();
         await startCamera();
-    } catch (error) {
+
+        console.log('Switched camera:', availableCameras[idxCurrentCamera].label);
+    }
+    catch (error) {
         console.error('Error switching camera:', error);
         showError(`Failed to switch camera: ${error.message}`);
+    }
+}
+
+async function setupCameraSystem() {
+    try {
+        await initializeCamera();
+        await startCamera();
+    } catch (error) {
+        console.error('Error setting up camera system:', error);
+        showError(`Camera setup failed: ${error.message}`);
     }
 }
 
@@ -294,10 +310,12 @@ function toggleDetection() {
     const btn = document.getElementById('toggleDetectionBtn');
     btn.textContent = isDetectionEnabled ? '停止监测' : '开始监测';
     if (isDetectionEnabled) {
+        console.log('Detection started');
     } else {
         canvasElement = document.getElementById('output');
         canvasCtx = canvasElement.getContext('2d');
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        console.log('Detection stopped');
     }
 }
 
@@ -337,6 +355,23 @@ function resetSettings() {
     updateSettings();
 }
 
+function cleanupResources() {
+    if (camera) {
+        camera.stop();
+        camera = null;
+    }
+    if (hands) {
+        hands.close();
+    }
+    if (alarmSound) {
+        alarmSound.pause();
+    }
+    if (videoElement && videoElement.srcObject) {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+        videoElement.srcObject = null;
+    }
+}
+
 function toggleDebug() {
     const debugPanel = document.getElementById('debug');
     debugEnabled = !debugEnabled;
@@ -371,3 +406,4 @@ async function checkMediaPipeFiles() {
 
 // Initialize when page loads
 window.addEventListener('load', initializeHandDetection);
+window.addEventListener('beforeunload', cleanupResources);
