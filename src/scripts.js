@@ -170,13 +170,17 @@ function onResults(results) {
         
         if (results.multiHandLandmarks) {
             for (const landmarks of results.multiHandLandmarks) {
+                // Draw connections with a softer blue color
                 drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-                    color: '#00FF00',
-                    lineWidth: 5
+                    color: 'rgba(61, 153, 245, 0.7)', // Transparent light blue
+                    lineWidth: 3
                 });
+                
+                // Draw landmarks with a gentle teal color
                 drawLandmarks(canvasCtx, landmarks, {
-                    color: '#FF0000',
-                    lineWidth: 2
+                    color: 'rgba(48, 184, 178, 0.8)', // Transparent teal
+                    lineWidth: 1,
+                    radius: 3 // Smaller points
                 });
             }
         }
@@ -186,10 +190,22 @@ function onResults(results) {
     }
 }
 
+const isElectron = window.electronAPI !== undefined;
+
+async function getCameraPermissions() {
+    if (isElectron) {
+        return await window.electronAPI.getCameraPermissions();
+    } else {
+        return await navigator.mediaDevices.getUserMedia({ video: true })
+            .then(() => true)
+            .catch(() => false);
+    }
+}
+
 async function startCamera() {
     try {
         // Request permission first
-        const permission = await window.electronAPI.getCameraPermissions();
+        const permission = await getCameraPermissions();
         if (!permission) {
             throw new Error('Camera permission denied');
         }

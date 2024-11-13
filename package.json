@@ -5,12 +5,15 @@
   "main": "main.js",
   "scripts": {
     "dev": "electron . --debug",
+    "dev:web": "webpack serve --mode development",
     "start": "electron .",
+    "start:web": "webpack serve",
     "build": "electron-builder -mw",
     "postinstall": "electron-builder install-app-deps",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win"
+    "build:win": "electron-builder --win",
+    "build:web": "webpack --mode production"
   },
   "keywords": [],
   "author": "",
@@ -23,7 +26,10 @@
   },
   "devDependencies": {
     "electron": "^33.0.2",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^4.0.0",
+    "webpack-dev-server": "^4.0.0"
   },
   "build": {
     "appId": "com.dangerous.detector",
