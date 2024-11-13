@@ -197,8 +197,9 @@ async function getCameraPermissions() {
     }
 }
 
+let bFirstTime = true;
 async function startCamera() {
-    showMessage('启动摄像头 ... ' + (mode == 'environment' ? '前置' : '后置'));
+    showMessage('准备摄像头 ... ' + (mode == 'environment' ? '前置' : '后置'));
     // wait for 1 second
     await new Promise((resolve) => setTimeout(resolve, 1000));
     hideMessage();
@@ -233,7 +234,14 @@ async function startCamera() {
                     if (isDetectionEnabled) {
                         // Add frame throttling
                         if (!lastFrameTime || performance.now() - lastFrameTime > frameInterval) {
+                            if (bFirstTime) {
+                                showMessage('手部模型预热 ...');
+                            }
                             await hands.send({ image: videoElement });
+                            if (bFirstTime) {
+                                hideMessage();
+                                bFirstTime = false;
+                            }
                             lastFrameTime = performance.now();
                         }
                     }
@@ -252,7 +260,9 @@ async function startCamera() {
             facingMode: cameraId2FacingMode(idxCurrentCamera)
         });
 
+        showMessage('启动摄像头 ...');
         await camera.start();
+        hideMessage();
 
         // return new Promise((resolve) => {
         //     videoElement.onloadedmetadata = () => {
