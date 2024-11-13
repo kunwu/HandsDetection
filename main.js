@@ -26,7 +26,7 @@ function createWindow() {
   }
 
   win.maximize();
-  win.webContents.openDevTools();
+  // win.webContents.openDevTools();
 
   // Set CSP header
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {

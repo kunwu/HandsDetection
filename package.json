@@ -25,6 +25,9 @@
     "@mediapipe/hands": "^0.4.1675469240"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "babel-loader": "^9.2.1",
+    "copy-webpack-plugin": "^12.0.2",
     "electron": "^33.0.2",
     "electron-builder": "^25.1.8",
     "webpack": "^5.0.0",
@@ -58,7 +61,10 @@
       }
     ],
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.utilities",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
@@ -66,7 +72,10 @@
       "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.ico"
     },
     "nsis": {

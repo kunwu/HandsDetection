@@ -13,13 +13,6 @@ const frameInterval = 1000 / 30; // 30 FPS max
 let availableCameras = [];
 let idxCurrentCamera = 0;
 
-function showError(message) {
-    const errorElement = document.getElementById('errorMessage');
-    errorElement.textContent = message;
-    errorElement.style.display = 'block';
-    document.getElementById('loading').style.display = 'none';
-}
-
 async function initializeCamera() {
     videoElement = document.getElementById('video');
 
@@ -59,7 +52,7 @@ async function getAvailableCameras() {
 async function initializeHandDetection() {
     try {
         console.log('Starting hand detection initialization...');
-        document.getElementById('loading').style.display = 'block';
+        showMessage('AI 模型加载 ...');
 
         canvasElement = document.getElementById('output');
         canvasCtx = canvasElement.getContext('2d');
@@ -72,13 +65,14 @@ async function initializeHandDetection() {
         console.log('Creating Hands instance...');
         hands = new Hands({
             locateFile: (file) => {
-                console.log('Loading MediaPipe file:', file);
+                console.log('Loading AI models', file);
                 return `mediapipe/hands/${file}`;
             }
         });
 
         await hands.initialize();
         
+        showMessage("加载识别配置项 ...");
         console.log('Setting hands options...');
         hands.setOptions({
             maxNumHands: 2,
@@ -90,12 +84,13 @@ async function initializeHandDetection() {
         console.log('Setting up results handler...');
         hands.onResults(onResults);
         
+        showMessage("初始化摄像头 ...");
         console.log('Initializing camera...');
         await setupCameraSystem();
         
         console.log('Initialization complete');
-        document.getElementById('loading').style.display = 'none';
-
+        hideMessage();
+        
         toggleMonitor();
         
         // Event listeners
@@ -203,6 +198,11 @@ async function getCameraPermissions() {
 }
 
 async function startCamera() {
+    showMessage('启动摄像头 ... ' + (mode == 'environment' ? '前置' : '后置'));
+    // wait for 1 second
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    hideMessage();
+
     try {
         // Request permission first
         const permission = await getCameraPermissions();
@@ -248,7 +248,8 @@ async function startCamera() {
             },
             width: 640,
             height: 480,
-            cameraId: availableCameras[idxCurrentCamera].deviceId
+            // cameraId: availableCameras[idxCurrentCamera].deviceId
+            facingMode: cameraId2FacingMode(idxCurrentCamera)
         });
 
         await camera.start();
@@ -263,6 +264,12 @@ async function startCamera() {
         console.error('Camera start error:', error);
         throw new Error(`Camera start failed: ${error.message}`);
     }
+}
+
+let mode = 'default';
+function cameraId2FacingMode(idx) {
+    mode = ((mode == 'environment') ? 'user' : 'environment');
+    return mode;
 }
 
 function stopCamera() {
@@ -281,7 +288,7 @@ function showError(message) {
     const errorElement = document.getElementById('errorMessage');
     errorElement.textContent = message;
     errorElement.style.display = 'block';
-    document.getElementById('loading').style.display = 'none';
+    document.getElementById('message-toast').style.display = 'none';
 }
 
 async function switchCamera() {
@@ -400,6 +407,17 @@ function logDebug(message) {
         debugLog.textContent += message + '\n';
         console.log(message);
     }
+}
+
+function showMessage(message = '工作中 ...') {
+    const elm = document.getElementById('message-toast');
+    elm.textContent = message;
+    elm.style.display = 'block';
+}
+
+function hideMessage() {
+    const elm = document.getElementById('message-toast');
+    elm.style.display = 'none';
 }
 
 // Add to scripts.js

@@ -104,3 +104,4 @@ node_modules/
 deploy/
 dist/
 *.map
+build/
